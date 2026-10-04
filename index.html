@@ -24,10 +24,10 @@
 <canvas id="cv" width="400" height="400"></canvas>
 
 <p>
-  <button class="btn sticker-btn" data-label="👂👂" data-size="110">Огромные уши</button>
-  <button class="btn sticker-btn" data-label="🧔" data-size="90">Борода</button>
-  <button class="btn sticker-btn" data-label="😎" data-size="80">Очки</button>
-  <button class="btn sticker-btn" data-label="🥓🥓🥓" data-size="70">Ремень из колбасок</button>
+  <button class="btn sticker-btn" data-type="ears" data-size="200">Огромные уши</button>
+  <button class="btn sticker-btn" data-type="beard" data-size="160">Борода</button>
+  <button class="btn sticker-btn" data-type="glasses" data-size="150">Очки</button>
+  <button class="btn sticker-btn" data-type="belt" data-size="180">Ремень из колбасок</button>
 </p>
 
 <p>
@@ -45,6 +45,83 @@
   var off = { x: 0, y: 0 };
   var MAX = 1000;
 
+  function drawEars(s) {
+    var w = s.size;
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.fillStyle = '#ffd9b3';
+    ctx.strokeStyle = '#c98a63';
+    ctx.lineWidth = Math.max(2, w * 0.01);
+    ctx.beginPath(); ctx.ellipse(-w * 0.35, 0, w * 0.16, w * 0.32, 0.3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse( w * 0.35, 0, w * 0.16, w * 0.32, -0.3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#f0a884';
+    ctx.beginPath(); ctx.ellipse(-w * 0.35, 0, w * 0.08, w * 0.19, 0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse( w * 0.35, 0, w * 0.08, w * 0.19, -0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawGlasses(s) {
+    var w = s.size;
+    var r = w * 0.22;
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.fillStyle = 'rgba(120,180,255,0.25)';
+    ctx.beginPath(); ctx.arc(-w * 0.26, 0, r, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc( w * 0.26, 0, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#111';
+    ctx.lineWidth = Math.max(4, w * 0.07);
+    ctx.beginPath(); ctx.arc(-w * 0.26, 0, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc( w * 0.26, 0, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-w * 0.04, 0); ctx.lineTo(w * 0.04, 0); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-w * 0.26 - r, 0); ctx.lineTo(-w * 0.5, -w * 0.07); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo( w * 0.26 + r, 0); ctx.lineTo( w * 0.5, -w * 0.07); ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawBeard(s) {
+    var w = s.size;
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.fillStyle = '#7a3b12';
+    ctx.beginPath(); ctx.arc(0, -w * 0.08, w * 0.45, 0, Math.PI); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-w * 0.14, -w * 0.12, w * 0.16, w * 0.05, 0.35, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse( w * 0.14, -w * 0.12, w * 0.16, w * 0.05, -0.35, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#9c5a2a';
+    for (var i = -2; i <= 2; i++) {
+      ctx.beginPath();
+      ctx.ellipse(i * w * 0.16, w * 0.12 + Math.abs(i) * w * 0.05, w * 0.04, w * 0.09, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawBelt(s) {
+    var w = s.size;
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.fillStyle = '#5a3a20';
+    ctx.fillRect(-w * 0.55, -w * 0.07, w * 1.1, w * 0.14);
+    for (var i = -3; i <= 3; i++) {
+      if (Math.abs(i) < 1) continue;
+      ctx.fillStyle = '#c1543f';
+      ctx.strokeStyle = '#8f2f1f';
+      ctx.lineWidth = Math.max(1, w * 0.01);
+      ctx.beginPath();
+      ctx.ellipse(i * w * 0.15, 0, w * 0.075, w * 0.055, i * 0.08, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+    }
+    ctx.fillStyle = '#ffd700';
+    ctx.fillRect(-w * 0.07, -w * 0.09, w * 0.14, w * 0.18);
+    ctx.restore();
+  }
+
+  function drawSticker(s) {
+    if (s.type === 'ears') drawEars(s);
+    else if (s.type === 'glasses') drawGlasses(s);
+    else if (s.type === 'beard') drawBeard(s);
+    else if (s.type === 'belt') drawBelt(s);
+  }
+
   function draw() {
     ctx.clearRect(0, 0, cv.width, cv.height);
     if (img) {
@@ -58,13 +135,7 @@
       ctx.textBaseline = 'middle';
       ctx.fillText('Сначала загрузи фото ↑', cv.width / 2, cv.height / 2);
     }
-    for (var i = 0; i < stickers.length; i++) {
-      var s = stickers[i];
-      ctx.font = s.size + 'px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(s.label, s.x, s.y);
-    }
+    for (var i = 0; i < stickers.length; i++) drawSticker(stickers[i]);
   }
 
   document.getElementById('fileInput').addEventListener('change', function (e) {
@@ -95,7 +166,7 @@
     btns[b].addEventListener('click', function () {
       if (!img) { alert('Сначала загрузи фото!'); return; }
       stickers.push({
-        label: this.dataset.label,
+        type: this.dataset.type,
         size: Number(this.dataset.size),
         x: cv.width / 2,
         y: cv.height / 2
@@ -117,7 +188,7 @@
     var p = getPos(e);
     for (var i = stickers.length - 1; i >= 0; i--) {
       var s = stickers[i];
-      var rad = Math.max(s.size, 40);
+      var rad = Math.max(s.size * 0.4, 40);
       if (Math.hypot(p.x - s.x, p.y - s.y) < rad) {
         drag = s;
         off.x = p.x - s.x;

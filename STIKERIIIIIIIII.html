@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Фотобудка со стикерами</title>
+  <style>
+    body {
+      margin: 0; padding: 10px;
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    #editor {
+      position: relative;
+      width: min(90vw, 600px);
+      height: 450px;
+      background: #ddd;
+      border: 2px solid #333;
+      border-radius: 8px;
+      overflow: hidden;
+      touch-action: none;
+    }
+    #image { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+    .sticker {
+      position: absolute;
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+      filter: drop-shadow(0 2px 3px rgba(0,0,0,.3));
+    }
+    .sticker:active { cursor: grabbing; }
+
+    #buttons { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin: 12px 0; }
+    #buttons button {
+      font-size: 18px; padding: 8px 14px;
+      border: 1px solid #bbb; border-radius: 8px;
+      background: #fff; cursor: pointer;
+    }
+    #buttons button:hover { background: #ffe9a8; }
+    #fileInput { margin-top: 6px; }
+  </style>
+</head>
+<body>
+
+  <input type="file" id="fileInput" accept="image/*" />
+  <div id="editor"><img id="image" alt="" /></div>
+
+  <div id="buttons">
+    <button data-sticker="beard">🧔 Борода</button>
+    <button data-sticker="ears">👂 Огромные уши</button>
+    <button data-sticker="sausage">🌭 Ремень из колбасок</button>
+    <button data-sticker="ears2">🐰 Ещё уши</button>
+    <button data-sticker="glasses">🕶️ Очки</button>
+  </div>
+
+  <script>
+    const editor = document.getElementById('editor');
+    const imageEl = document.getElementById('image');
+
+    // Загрузка фото
+    document.getElementById('fileInput').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const r = new FileReader();
+      r.onload = ev => imageEl.src = ev.target.result;
+      r.readAsDataURL(file);
+    });
+
+    // === Стикеры (нарисованы кодом, без внешних файлов) ===
+    const stickers = {
+      beard: `<svg width="140" height="130" viewBox="0 0 140 130">
+        <path d="M20 10 Q70 -10 120 10 Q125 70 70 120 Q15 70 20 10 Z" fill="#5b3a1e"/>
+        <path d="M35 15 Q70 5 105 15 Q100 40 70 42 Q40 40 35 15 Z" fill="#7a4f2a"/>
+      </svg>`,
+      ears: `<svg width="160" height="110" viewBox="0 0 160 110">
+        <ellipse cx="45" cy="60" rx="30" ry="45" fill="#f3c6a5" stroke="#d99b70" stroke-width="3"/>
+        <ellipse cx="115" cy="60" rx="30" ry="45" fill="#f3c6a5" stroke="#d99b70" stroke-width="3"/>
+        <ellipse cx="45" cy="60" rx="15" ry="25" fill="#e09b7e"/>
+        <ellipse cx="115" cy="60" rx="15" ry="25" fill="#e09b7e"/>
+      </svg>`,
+      sausage: `<svg width="220" height="45" viewBox="0 0 220 45">
+        <rect x="0" y="16" width="220" height="14" rx="7" fill="#c0392b"/>
+        <circle cx="18" cy="23" r="20" fill="#e67e22" stroke="#b3541e" stroke-width="3"/>
+        <circle cx="60" cy="23" r="20" fill="#e67e22" stroke="#b3541e" stroke-width="3"/>
+        <circle cx="102" cy="23" r="20" fill="#e67e22" stroke="#b3541e" stroke-width="3"/>
+        <circle cx="144" cy="23" r="20" fill="#e67e22" stroke="#b3541e" stroke-width="3"/>
+        <circle cx="186" cy="23" r="20" fill="#e67e22" stroke="#b3541e" stroke-width="3"/>
+      </svg>`,
+      ears2: `<svg width="150" height="110" viewBox="0 0 150 110">
+        <ellipse cx="45" cy="45" rx="22" ry="42" fill="#fff" stroke="#e8a6c9" stroke-width="4"/>
+        <ellipse cx="105" cy="45" rx="22" ry="42" fill="#fff" stroke="#e8a6c9" stroke-width="4"/>
+        <ellipse cx="45" cy="50" rx="10" ry="28" fill="#f8c8dc"/>
+        <ellipse cx="105" cy="50" rx="10" ry="28" fill="#f8c8dc"/>
+      </svg>`,
+      glasses: `<svg width="170" height="70" viewBox="0 0 170 70">
+        <circle cx="45" cy="40" r="28" fill="none" stroke="#222" stroke-width="7"/>
+        <circle cx="125" cy="40" r="28" fill="none" stroke="#222" stroke-width="7"/>
+        <line x1="73" y1="40" x2="97" y2="40" stroke="#222" stroke-width="7"/>
+      </svg>`
+    };
+
+    // Добавление стикера по клику на кнопку
+    document.querySelectorAll('#buttons button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        editor.insertAdjacentHTML('beforeend', stickers[btn.dataset.sticker]);
+        const st = editor.lastElementChild;
+        st.classList.add('sticker');
+        st.style.left = (editor.clientWidth - st.offsetWidth) / 2 + 'px';
+        st.style.top = (editor.clientHeight - st.offsetHeight) / 2 + 'px';
+        makeDraggable(st);
+      });
+    });
+
+    // Перетаскивание мышкой И пальцем (Pointer Events)
+    function makeDraggable(el) {
+      el.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        el.setPointerCapture(e.pointerId);
+        el.style.zIndex = ++zIndex;
+        const dx = e.clientX - el.offsetLeft;
+        const dy = e.clientY - el.offsetTop;
+
+        const move = ev => {
+          let x = ev.clientX - dx;
+          let y = ev.clientY - dy;
+          x = Math.max(-40, Math.min(x, editor.clientWidth - el.offsetWidth + 40));
+          y = Math.max(-40, Math.min(y, editor.clientHeight - el.offsetHeight + 40));
+          el.style.left = x + 'px';
+          el.style.top = y + 'px';
+        };
+
+        const up = () => {
+          el.removeEventListener('pointermove', move);
+          el.removeEventListener('pointerup', up);
+        };
+        el.addEventListener('pointermove', move);
+        el.addEventListener('pointerup', up);
+      });
+    }
+
+    let zIndex = 10;
+  </script>
+</body>
+</html>
+
+

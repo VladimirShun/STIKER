@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-редактор стикеров 🌵</title>
+<style>
+  body{font-family:sans-serif;margin:0;background:#f7f2e8;color:#333;}
+  .wrap{max-width:900px;margin:0 auto;padding:16px;}
+  h1{font-size:22px;}
+  #canvasBox{position:relative;width:100%;min-height:500px;background:#e8e2d5;
+    border:3px solid #5a3a1a;border-radius:12px;overflow:hidden;background-size:cover;background-position:center;}
+  .sticker{position:absolute;cursor:grab;user-select:none;touch-action:none;}
+  .sticker.sel{outline:2px dashed #d9534f;}
+  .palette{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;}
+  .palette button,.row button{font-size:20px;background:#fff;border:2px solid #5a3a1a;
+    border-radius:10px;padding:8px 12px;cursor:pointer;}
+  .row{display:flex;gap:8px;margin:10px 0;}
+  #aiCmd{flex:1;border:1px solid #ccc;border-radius:8px;padding:10px;font-size:15px;}
+  #aiGo{background:#5a3a1a;color:#fff;border:none;border-radius:8px;padding:10px 16px;cursor:pointer;}
+  #status{font-size:14px;color:#666;min-height:20px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🌵 AI-редактор стикеров</h1>
+  <div class="palette">
+    <button data-type="glasses">🕶️ Очки</button>
+    <button data-type="ears">👂 Уши</button>
+    <button data-type="beard">🧔 Борода</button>
+    <button data-type="belt">🍖 Ремень</button>
+    <button data-type="hat">🎩 Шляпа</button>
+    <button id="delBtn">🗑 Удалить выбранное</button>
+  </div>
+  <div class="row">
+    <input type="file" id="bgFile" accept="image/*">
+  </div>
+  <div id="canvasBox"></div>
+  <div class="row">
+    <input id="aiCmd" placeholder="Например: надень очки в центр, сделай уши больше, убери шляпу">
+    <button id="aiGo">Сделать</button>
+  </div>
+  <div id="status"></div>
+</div>
+
+<script>
+(function(){
+  var SERVER = 'https://cactus-bot-xxxx.onrender.com'; // ← ВСТАВЬ СВОЙ адрес Render
+  var box = document.getElementById('canvasBox'),
+      cmd = document.getElementById('aiCmd'), go = document.getElementById('aiGo'),
+      status = document.getElementById('status');
+  var EMOJI = {glasses:'🕶️', ears:'👂', beard:'🧔', belt:'🍖', hat:'🎩'};
+  var selected = null;
+
+  document.getElementById('bgFile').onchange = function(e){
+    var f = e.target.files[0]; if (!f) return;
+    var r = new FileReader();
+    r.onload = function(ev){ box.style.backgroundImage = 'url(' + ev.target.result + ')'; };
+    r.readAsDataURL(f);
+  };
+
+  document.querySelectorAll('.palette button[data-type]').forEach(function(b){
+    b.onclick = function(){
+      var d = document.createElement('div');
+      d.className = 'sticker'; d.dataset.type = b.dataset.type;
+      d.textContent = EMOJI[b.dataset.type] || '🌵';
+      d.style.fontSize = '60px';
+      d.style.left = (20 + Math.random() * (box.offsetWidth - 120)) + 'px';
+      d.style.top  = (20 + Math.random() * (box.offsetHeight - 120)) + 'px';
+      box.appendChild(d);
+      bind(d);
+    };
+  });
+
+  document.getElementById('delBtn').onclick = function(){
+    if (selected) { selected.remove(); selected = null; }
+  };
+
+  function bind(el){
+    el.addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      selected = el;
+      document.querySelectorAll('.sticker').forEach(function(s){ s.classList.remove('sel'); });
+      el.classList.add('sel');
+      var sx = e.clientX - el.offsetLeft, sy = e.clientY - el.offsetTop;
+      function mv(ev){ el.style.left = (ev.clientX - sx) + 'px'; el.style.top = (ev.clientY - sy) + 'px'; }
+      function up(){ document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up); }
+      document.addEventListener('pointermove', mv);
+      document.addEventListener('pointerup', up);
+    });
+    el.addEventListener('wheel', function(e){          // колесо мыши меняет размер
+      e.preventDefault();
+      var s = parseFloat(el.style.fontSize || 60) + (e.deltaY < 0 ? 8 : -8);
+      el.style.fontSize = Math.max(20, Math.min(300, s)) + 'px';
+    }, {passive:false});
+  }
+
+  function findAll(){
+    return Array.from(box.querySelectorAll('.sticker')).map(function(el, i){
+      return {id: i, type: el.dataset.type,
+              x: el.offsetLeft, y: el.offsetTop,
+              w: el.offsetWidth, h: el.offsetHeight,
+              fontSize: parseInt(el.style.fontSize) || 60};
+    });
+  }
+
+  function apply(a){
+    var all = Array.from(box.querySelectorAll('.sticker'));
+    (a.actions || []).forEach(function(op){
+      var el = all[op.id];
+      if (op.op === 'move' && el){ el.style.left = op.x + 'px'; el.style.top = op.y + 'px'; }
+      if (op.op === 'resize' && el){ el.style.fontSize = Math.max(20, Math.min(300, op.h || op.w || 60)) + 'px'; }
+      if (op.op === 'remove' && el){ if (el === selected) selected = null; el.remove(); }
+      if (op.op === 'add'){
+        var d = document.createElement('div');
+        d.className = 'sticker'; d.dataset.type = op.type;
+        d.textContent = EMOJI[op.type] || '🌵';
+        d.style.fontSize = (op.h || 60) + 'px';
+        d.style.left = op.x + 'px'; d.style.top = op.y + 'px';
+        box.appendChild(d); bind(d);
+      }
+    });
+  }
+
+  go.onclick = function(){
+    var t = cmd.value.trim(); if (!t) return;
+    cmd.value = '';
+    status.textContent = 'ИИ думает...';
+    fetch(SERVER + '/edit', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        command: t,
+        canvas: {w: box.offsetWidth, h: box.offsetHeight},
+        stickers: findAll()
+      })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d.actions) { apply(d); status.textContent = 'Готово! Действий: ' + d.actions.length; }
+      else status.textContent = 'Ошибка: ' + (d.error || 'неизвестно');
+    })
+    .catch(function(){ status.textContent = 'Сервер спит — подожди минуту и попробуй ещё раз 🌵'; });
+  };
+  cmd.addEventListener('keydown', function(e){ if (e.key === 'Enter') go.onclick(); });
+})();
+</script>
+</body>
+</html>
